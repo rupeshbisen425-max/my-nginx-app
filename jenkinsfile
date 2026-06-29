@@ -1,0 +1,89 @@
+pipeline {
+
+agent any
+
+environment {
+
+IMAGE="dockerhub-user/myapp"
+
+}
+
+stages {
+
+stage('Clone') {
+
+steps {
+
+git 'https://github.com/username/myapp.git'
+
+}
+
+}
+
+stage('Build Image') {
+
+steps {
+
+sh 'docker build -t $IMAGE:$BUILD_NUMBER .'
+
+}
+
+}
+
+stage('Login DockerHub') {
+
+steps {
+
+withCredentials([usernamePassword(credentialsId: 'dockerhub',
+
+usernameVariable: 'USER',
+
+passwordVariable: 'PASS')]) {
+
+sh '''
+
+echo $PASS | docker login -u $USER --password-stdin
+
+'''
+
+}
+
+}
+
+}
+
+stage('Push Image') {
+
+steps {
+
+sh '''
+
+docker push $IMAGE:$BUILD_NUMBER
+
+docker tag $IMAGE:$BUILD_NUMBER $IMAGE:latest
+
+docker push $IMAGE:latest
+
+'''
+
+}
+
+}
+
+stage('Deploy') {
+
+steps {
+
+sh '''
+
+kubectl set image deployment/myapp myapp=$IMAGE:$BUILD_NUMBER
+
+'''
+
+}
+
+}
+
+}
+
+}
